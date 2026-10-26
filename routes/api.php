@@ -2,12 +2,10 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EtablissementController;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
-
+// Vérifier que l'API fonctionne
 Route::get('/test', function () {
     return response()->json([
         'success' => true,
@@ -15,8 +13,21 @@ Route::get('/test', function () {
     ]);
 });
 
-// Gestion des établissements scolaires
-Route::apiResource(
-    'etablissements',
-    EtablissementController::class
-);
+// Connexion : accessible sans jeton
+Route::post('/login', [AuthController::class, 'login']);
+
+// Routes protégées : un jeton Sanctum valide est nécessaire
+Route::middleware('auth:sanctum')->group(function () {
+
+    // Informations de l'utilisateur connecté
+    Route::get('/user', [AuthController::class, 'me']);
+
+    // Déconnexion
+    Route::post('/logout', [AuthController::class, 'logout']);
+
+    // Gestion des établissements scolaires
+    Route::apiResource(
+        'etablissements',
+        EtablissementController::class
+    );
+});
