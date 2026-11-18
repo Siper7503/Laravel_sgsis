@@ -1,12 +1,33 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
+import { Badge } from '@/components/ui/badge';
 import { dashboard } from '@/routes';
+import { userRoleLabels } from '@/types/auth';
 
 export default function Dashboard() {
+    const { auth } = usePage().props;
+    const roleLabel = userRoleLabels[auth.user.role];
+
     return (
         <>
-            <Head title="Dashboard" />
+            <Head title="Tableau de bord" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+                <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-6 shadow-sm">
+                    <div className="flex flex-col gap-2">
+                        <p className="text-sm text-muted-foreground">
+                            Bienvenue, {auth.user.name}
+                        </p>
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            Tableau de bord
+                        </h1>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">
+                            Connecté en tant que
+                        </span>
+                        <Badge className="px-3 py-1 text-sm">{roleLabel}</Badge>
+                    </div>
+                </section>
                 <div className="grid auto-rows-min gap-4 md:grid-cols-3">
                     <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
                         <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />

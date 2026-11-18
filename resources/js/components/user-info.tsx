@@ -1,6 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useInitials } from '@/hooks/use-initials';
-import type { User } from '@/types';
+import { userRoleLabels, type User } from '@/types/auth';
 
 export function UserInfo({
     user,
@@ -21,6 +21,9 @@ export function UserInfo({
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
+                <span className="truncate text-xs font-semibold text-primary">
+                    {userRoleLabels[user.role]}
+                </span>
                 {showEmail && (
                     <span className="truncate text-xs text-muted-foreground">
                         {user.email}
