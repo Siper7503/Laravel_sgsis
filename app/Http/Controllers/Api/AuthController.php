@@ -4,63 +4,57 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    /**
-     * Connecter un utilisateur et générer un jeton API.
-     */
-    public function login(Request $request)
+    public function login(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $user = User::query()->where('email', $validated['email'])->first();
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
+        if (
+            ! $user
+            || ! $user->is_active
+            || ! $user->hasVerifiedEmail()
+            || ! Hash::check($validated['password'], $user->password)
+        ) {
             throw ValidationException::withMessages([
                 'email' => ['Adresse e-mail ou mot de passe incorrect.'],
             ]);
         }
 
-        // Supprimer uniquement les jetons existants portant ce nom.
         $user->tokens()->where('name', 'sgsis-api')->delete();
-
         $token = $user->createToken('sgsis-api')->plainTextToken;
 
         return response()->json([
-            'message' => 'Connexion réussie.',
+            'message' => 'Connexion reussie.',
             'user' => $user,
             'token' => $token,
             'token_type' => 'Bearer',
         ]);
     }
 
-    /**
-     * Déconnecter l'utilisateur en supprimant son jeton courant.
-     */
-    public function logout(Request $request)
+    public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
-            'message' => 'Déconnexion réussie.',
+            'message' => 'Deconnexion reussie.',
         ]);
     }
 
-    /**
-     * Retourner les informations de l'utilisateur connecté.
-     */
-    public function me(Request $request)
+    public function me(Request $request): JsonResponse
     {
         return response()->json([
             'user' => $request->user(),
         ]);
     }
 }
-

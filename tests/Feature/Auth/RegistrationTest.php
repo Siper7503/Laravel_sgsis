@@ -36,4 +36,22 @@ class RegistrationTest extends TestCase
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
     }
+
+    public function test_public_registration_cannot_choose_a_privileged_role_or_disable_the_account(): void
+    {
+        $this->post(route('register.store'), [
+            'name' => 'Usager',
+            'email' => 'public-usager@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'role' => 'superadmin',
+            'is_active' => false,
+        ])->assertRedirect(route('dashboard', absolute: false));
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'public-usager@example.com',
+            'role' => 'usager',
+            'is_active' => true,
+        ]);
+    }
 }

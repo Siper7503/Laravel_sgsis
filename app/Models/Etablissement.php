@@ -2,10 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Etablissement extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'code',
         'nom',
@@ -18,6 +22,21 @@ class Etablissement extends Model
         'email',
         'actif',
     ];
+
+    /**
+     * Agents assigned to this establishment.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function agents(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            User::class,
+            'etablissement_agent',
+            'etablissement_id',
+            'agent_id',
+        )->withTimestamps();
+    }
 
     protected function casts(): array
     {

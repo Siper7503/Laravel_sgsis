@@ -4,19 +4,35 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Etablissement;
+use App\Models\User;
+use App\UserRole;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class EtablissementController extends Controller
 {
-    public function index()
+    public function index(Request $request): JsonResponse
     {
-        return response()->json(
-            Etablissement::orderBy('nom')->paginate(20)
-        );
+        Gate::authorize('viewAny', Etablissement::class);
+
+        $query = Etablissement::query()->orderBy('nom');
+
+        if ($request->user()->role === UserRole::Agent) {
+            $query->whereHas('agents', function (Builder $query) use ($request): void {
+                $query->whereKey($request->user()->getKey());
+            });
+        }
+
+        return response()->json($query->paginate(20));
     }
-    public function store(Request $request)
+
+    public function store(Request $request): JsonResponse
     {
+        Gate::authorize('create', Etablissement::class);
+
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:30', 'unique:etablissements,code'],
             'nom' => ['required', 'string', 'max:200'],
@@ -33,18 +49,24 @@ class EtablissementController extends Controller
         $etablissement = Etablissement::create($validated);
 
         return response()->json([
-            'message' => 'Établissement créé avec succès.',
+            'message' => 'Etablissement cree avec succes.',
             'data' => $etablissement,
         ], 201);
     }
 
-    public function show(Etablissement $etablissement)
+    public function show(Request $request, Etablissement $etablissement): JsonResponse
     {
+        $this->hideUnassignedEstablishmentFromAgent($request->user(), $etablissement);
+        Gate::authorize('view', $etablissement);
+
         return response()->json($etablissement);
     }
 
-    public function update(Request $request, Etablissement $etablissement)
+    public function update(Request $request, Etablissement $etablissement): JsonResponse
     {
+        $this->hideUnassignedEstablishmentFromAgent($request->user(), $etablissement);
+        Gate::authorize('update', $etablissement);
+
         $validated = $request->validate([
             'code' => [
                 'sometimes', 'required', 'string', 'max:30',
@@ -64,17 +86,32 @@ class EtablissementController extends Controller
         $etablissement->update($validated);
 
         return response()->json([
-            'message' => 'Établissement mis à jour avec succès.',
+            'message' => 'Etablissement mis a jour avec succes.',
             'data' => $etablissement->fresh(),
         ]);
     }
 
-    public function destroy(Etablissement $etablissement)
+    public function destroy(Request $request, Etablissement $etablissement): JsonResponse
     {
+        $this->hideUnassignedEstablishmentFromAgent($request->user(), $etablissement);
+        Gate::authorize('delete', $etablissement);
+
         $etablissement->delete();
 
         return response()->json([
-            'message' => 'Établissement supprimé avec succès.',
+            'message' => 'Etablissement supprime avec succes.',
         ]);
+    }
+
+    private function hideUnassignedEstablishmentFromAgent(
+        User $user,
+        Etablissement $etablissement,
+    ): void {
+        if (
+            $user->role === UserRole::Agent
+            && ! $user->etablissements()->whereKey($etablissement->getKey())->exists()
+        ) {
+            abort(404);
+        }
     }
 }
