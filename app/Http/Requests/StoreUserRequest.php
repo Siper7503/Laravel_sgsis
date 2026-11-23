@@ -17,6 +17,9 @@ class StoreUserRequest extends FormRequest
             && in_array($user->role, [UserRole::Superadmin, UserRole::Admin], true);
     }
 
+    /**
+     * @return array<string, array<int, mixed>>
+     */
     public function rules(): array
     {
         $user = $this->user();
