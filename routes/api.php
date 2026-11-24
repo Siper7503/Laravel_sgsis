@@ -37,6 +37,9 @@ Route::middleware('auth:sanctum')->group(function () {
             )->name('etablissements.agents.destroy');
         });
 
+        Route::get('/etablissements/map', [EtablissementController::class, 'map'])
+            ->name('etablissements.map');
+
         Route::apiResource('etablissements', EtablissementController::class);
 
         Route::post(
