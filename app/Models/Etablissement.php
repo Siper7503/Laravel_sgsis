@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\EtablissementType;
 use Database\Factories\EtablissementFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
- * @property 'primaire'|'secondaire' $type
+ * @property EtablissementType $type
  */
 class Etablissement extends Model
 {
@@ -46,6 +47,7 @@ class Etablissement extends Model
     protected function casts(): array
     {
         return [
+            'type' => EtablissementType::class,
             'latitude' => 'float',
             'longitude' => 'float',
             'actif' => 'boolean',

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\EtablissementType;
 use App\Models\Etablissement;
 use App\Models\User;
 use App\UserFunction;
@@ -37,14 +38,12 @@ class EtablissementAgentController extends Controller
     private function ensureAgentCanManageEstablishment(Etablissement $etablissement, User $user): void
     {
         $requiredFunction = match ($etablissement->type) {
-            'primaire' => UserFunction::DirecteurEcole,
-            'secondaire' => UserFunction::Proviseur,
-            default => null,
+            EtablissementType::Primaire => UserFunction::DirecteurEcole,
+            EtablissementType::Secondaire => UserFunction::Proviseur,
         };
 
         if (
             $user->role !== UserRole::Agent
-            || $requiredFunction === null
             || $user->organizational_function !== $requiredFunction
         ) {
             throw ValidationException::withMessages([

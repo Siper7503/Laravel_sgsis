@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\AnnualReport;
 use App\Models\Etablissement;
 use App\Models\User;
+use App\EtablissementType;
 use App\UserFunction;
 use App\UserRole;
 use Illuminate\Auth\Access\Response;
@@ -85,9 +86,8 @@ class AnnualReportPolicy
     private function hasMatchingEstablishmentFunction(User $user, Etablissement $etablissement): bool
     {
         return match ($etablissement->type) {
-            'primaire' => $user->organizational_function === UserFunction::DirecteurEcole,
-            'secondaire' => $user->organizational_function === UserFunction::Proviseur,
-            default => false,
+            EtablissementType::Primaire => $user->organizational_function === UserFunction::DirecteurEcole,
+            EtablissementType::Secondaire => $user->organizational_function === UserFunction::Proviseur,
         };
     }
 
