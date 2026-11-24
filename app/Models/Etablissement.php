@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
+/**
+ * @property 'primaire'|'secondaire' $type
+ */
 class Etablissement extends Model
 {
     /** @use HasFactory<EtablissementFactory> */
