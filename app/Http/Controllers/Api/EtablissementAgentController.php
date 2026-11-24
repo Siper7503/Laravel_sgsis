@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\EtablissementType;
+use App\Http\Controllers\Controller;
 use App\Models\Etablissement;
 use App\Models\User;
 use App\UserFunction;

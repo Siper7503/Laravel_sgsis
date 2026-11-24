@@ -2,10 +2,10 @@
 
 namespace App\Policies;
 
+use App\EtablissementType;
 use App\Models\AnnualReport;
 use App\Models\Etablissement;
 use App\Models\User;
-use App\EtablissementType;
 use App\UserFunction;
 use App\UserRole;
 use Illuminate\Auth\Access\Response;
