@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\User;
+use App\UserFunction;
 use App\UserRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -29,11 +30,22 @@ class StoreUserRequest extends FormRequest
                 $user->role->creatableRoles(),
             )
             : [];
+        $targetRole = UserRole::tryFrom((string) $this->input('role'));
+        $assignableFunctions = $targetRole?->assignableFunctions() ?? [];
 
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'role' => ['required', Rule::in($creatableRoles)],
+            'organizational_function' => $assignableFunctions === []
+                ? ['prohibited']
+                : [
+                    'required',
+                    Rule::in(array_map(
+                        fn (UserFunction $function): string => $function->value,
+                        $assignableFunctions,
+                    )),
+                ],
         ];
     }
 }

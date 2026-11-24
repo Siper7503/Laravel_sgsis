@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Models\User;
+use App\UserFunction;
 use App\UserRole;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Password;
@@ -22,6 +23,9 @@ class UserController extends Controller
             'email' => $validated['email'],
             'password' => Str::random(64),
             'role' => UserRole::from($validated['role']),
+            'organizational_function' => isset($validated['organizational_function'])
+                ? UserFunction::from($validated['organizational_function'])
+                : null,
             'is_active' => true,
         ])->save();
 
@@ -35,6 +39,7 @@ class UserController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role->value,
+                'organizational_function' => $user->organizational_function?->value,
                 'is_active' => $user->is_active,
             ],
         ], 201);

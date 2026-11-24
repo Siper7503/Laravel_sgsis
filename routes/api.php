@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AnnualReportController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EtablissementAgentController;
 use App\Http\Controllers\Api\EtablissementController;
@@ -37,5 +38,29 @@ Route::middleware('auth:sanctum')->group(function () {
         });
 
         Route::apiResource('etablissements', EtablissementController::class);
+
+        Route::post(
+            '/etablissements/{etablissement}/annual-reports',
+            [AnnualReportController::class, 'store'],
+        )->name('annual-reports.store');
+
+        Route::apiResource('annual-reports', AnnualReportController::class)
+            ->only(['index', 'show', 'update'])
+            ->parameters(['annual-reports' => 'annualReport']);
+
+        Route::post(
+            '/annual-reports/{annualReport}/submit',
+            [AnnualReportController::class, 'submit'],
+        )->name('annual-reports.submit');
+
+        Route::post(
+            '/annual-reports/{annualReport}/dse-review',
+            [AnnualReportController::class, 'reviewByDse'],
+        )->name('annual-reports.dse-review');
+
+        Route::post(
+            '/annual-reports/{annualReport}/dgss-review',
+            [AnnualReportController::class, 'reviewByDgss'],
+        )->name('annual-reports.dgss-review');
     });
 });

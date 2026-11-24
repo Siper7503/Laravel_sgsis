@@ -24,6 +24,7 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
             'role' => UserRole::Usager,
+            'organizational_function' => null,
             'is_active' => true,
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
