@@ -15,7 +15,6 @@ class EtablissementAgentController extends Controller
 {
     public function store(Etablissement $etablissement, User $agent): JsonResponse
     {
-        $this->ensureCoordinatesExist($etablissement);
         $this->ensureAgentCanManageEstablishment($etablissement, $agent);
 
         $etablissement->agents()->syncWithoutDetaching([$agent->getKey()]);
@@ -51,16 +50,5 @@ class EtablissementAgentController extends Controller
                 'agent' => ['La fonction du compte Agent ne correspond pas au type d’etablissement.'],
             ]);
         }
-    }
-
-    private function ensureCoordinatesExist(Etablissement $etablissement): void
-    {
-        if ($etablissement->latitude !== null && $etablissement->longitude !== null) {
-            return;
-        }
-
-        throw ValidationException::withMessages([
-            'etablissement' => ['La position GPS doit être renseignée avant l’affectation d’un agent.'],
-        ]);
     }
 }

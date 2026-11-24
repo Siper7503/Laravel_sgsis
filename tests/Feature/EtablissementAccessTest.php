@@ -77,7 +77,7 @@ class EtablissementAccessTest extends TestCase
             ->assertJsonPath('data.0.id', $active->id);
     }
 
-    public function test_admin_cannot_create_an_establishment_without_both_coordinates(): void
+    public function test_admin_can_create_an_establishment_without_coordinates(): void
     {
         $admin = User::factory()->create(['role' => UserRole::Admin]);
 
@@ -87,10 +87,32 @@ class EtablissementAccessTest extends TestCase
                 'nom' => 'École de test',
                 'type' => 'primaire',
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['latitude', 'longitude']);
+            ->assertCreated()
+            ->assertJsonPath('data.latitude', null)
+            ->assertJsonPath('data.longitude', null);
 
-        $this->assertDatabaseMissing('etablissements', ['code' => 'ETB-001']);
+        $this->assertDatabaseHas('etablissements', [
+            'code' => 'ETB-001',
+            'latitude' => null,
+            'longitude' => null,
+        ]);
+    }
+
+    public function test_admin_must_provide_both_coordinates_together(): void
+    {
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+
+        $this->actingAs($admin)
+            ->postJson('/api/etablissements', [
+                'code' => 'ETB-003',
+                'nom' => 'École de test',
+                'type' => 'primaire',
+                'latitude' => 12.34,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('longitude');
+
+        $this->assertDatabaseMissing('etablissements', ['code' => 'ETB-003']);
     }
 
     public function test_admin_can_create_an_establishment_with_valid_coordinates(): void
@@ -136,7 +158,7 @@ class EtablissementAccessTest extends TestCase
         ]);
     }
 
-    public function test_agent_cannot_be_assigned_to_an_establishment_without_coordinates(): void
+    public function test_agent_can_be_assigned_to_an_establishment_without_coordinates(): void
     {
         $admin = User::factory()->create(['role' => UserRole::Admin]);
         $agent = User::factory()->create([
@@ -151,10 +173,9 @@ class EtablissementAccessTest extends TestCase
 
         $this->actingAs($admin)
             ->postJson('/api/etablissements/'.$etablissement->id.'/agents/'.$agent->id)
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('etablissement');
+            ->assertCreated();
 
-        $this->assertDatabaseMissing('etablissement_agent', [
+        $this->assertDatabaseHas('etablissement_agent', [
             'etablissement_id' => $etablissement->id,
             'agent_id' => $agent->id,
         ]);
