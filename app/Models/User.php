@@ -78,6 +78,17 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     }
 
     /**
+     * Discussions this user participates in.
+     *
+     * @return BelongsToMany<Discussion, $this>
+     */
+    public function discussions(): BelongsToMany
+    {
+        return $this->belongsToMany(Discussion::class, 'discussion_participants')
+            ->withPivot('joined_at');
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
