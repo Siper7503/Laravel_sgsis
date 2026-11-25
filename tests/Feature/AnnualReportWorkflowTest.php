@@ -158,7 +158,7 @@ class AnnualReportWorkflowTest extends TestCase
         ]);
         $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
         $agent->etablissements()->attach($etablissement);
-        $reportData = $this->completeReportData();
+        $reportData = $this->primaryReportData();
         $reportData['effectifs_eleves'] = [
             'niveaux' => [
                 [
@@ -177,6 +177,14 @@ class AnnualReportWorkflowTest extends TestCase
                 ['niveau' => 'CP1', 'enseignantes' => 1, 'enseignants' => 1],
             ],
         ];
+        $reportData['personnel_direction'] = [
+            'directeur' => [
+                'nom_complet' => 'Awa Sawadogo',
+                'sexe' => 'femme',
+                'qualification' => 'CAP primaire',
+                'assure_classe' => true,
+            ],
+        ];
 
         $reportId = $this->actingAs($agent)
             ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
@@ -187,6 +195,9 @@ class AnnualReportWorkflowTest extends TestCase
             ->assertJsonPath('data.data.effectifs_eleves.infrastructures.batiments', 3)
             ->assertJsonPath('data.data.personnel_enseignant.effectif_total.enseignantes', 4)
             ->assertJsonPath('data.data.personnel_enseignant.par_niveau.0.enseignantes', 1)
+            ->assertJsonPath('data.data.personnel_direction.directeur.nom_complet', 'Awa Sawadogo')
+            ->assertJsonPath('data.data.personnel_direction.directeur.assure_classe', true)
+            ->assertJsonPath('data.data.personnel_administration.personnels.0.fonction', 'Secrétaire')
             ->json('data.id');
 
         $this->postJson('/api/annual-reports/'.$reportId.'/submit')
@@ -211,7 +222,7 @@ class AnnualReportWorkflowTest extends TestCase
         ]);
         $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
         $agent->etablissements()->attach($etablissement);
-        $reportData = $this->completeReportData();
+        $reportData = $this->primaryReportData();
         $reportData['effectifs_eleves'] = [
             'niveaux' => [[
                 'niveau' => 'CP1',
@@ -230,6 +241,7 @@ class AnnualReportWorkflowTest extends TestCase
                 'enseignants' => 1,
             ]],
         ];
+        $reportData['personnels_appui_soutien']['fonctions'][0]['femmes'] = -1;
 
         $this->actingAs($agent)
             ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
@@ -237,7 +249,10 @@ class AnnualReportWorkflowTest extends TestCase
                 'data' => $reportData,
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('data.personnel_enseignant.par_niveau.0.enseignantes');
+            ->assertJsonValidationErrors([
+                'data.personnel_enseignant.par_niveau.0.enseignantes',
+                'data.personnels_appui_soutien.fonctions.0.femmes',
+            ]);
 
         $this->assertDatabaseCount('annual_reports', 0);
     }
@@ -1136,6 +1151,33 @@ class AnnualReportWorkflowTest extends TestCase
                 'niveau' => 'CP1',
                 'enseignantes' => 1,
                 'enseignants' => 1,
+            ]],
+        ];
+        $data['personnel_direction'] = [
+            'directeur' => [
+                'nom_complet' => 'Awa Sawadogo',
+                'sexe' => 'femme',
+                'qualification' => 'CAP primaire',
+                'assure_classe' => true,
+            ],
+        ];
+        $data['personnel_administration'] = [
+            'personnels' => [[
+                'fonction' => 'Secrétaire',
+                'femmes' => 1,
+                'hommes' => 0,
+            ]],
+        ];
+        $data['personnels_appui_soutien'] = [
+            'fonctions' => [[
+                'fonction' => 'gardien_vigile',
+                'femmes' => 0,
+                'hommes' => 1,
+            ]],
+            'autres' => [[
+                'designation' => 'Aide communautaire',
+                'femmes' => 1,
+                'hommes' => 0,
             ]],
         ];
 

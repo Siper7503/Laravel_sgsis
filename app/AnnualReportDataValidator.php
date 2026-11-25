@@ -131,6 +131,39 @@ final class AnnualReportDataValidator
                 ],
                 'data.personnel_enseignant.par_niveau.*.enseignantes' => ['sometimes', 'integer', 'min:0'],
                 'data.personnel_enseignant.par_niveau.*.enseignants' => ['sometimes', 'integer', 'min:0'],
+                'data.personnel_direction' => ['sometimes', 'array:directeur'],
+                'data.personnel_direction.directeur' => [
+                    'sometimes', 'array:nom_complet,sexe,qualification,assure_classe',
+                ],
+                'data.personnel_direction.directeur.nom_complet' => ['sometimes', 'string', 'max:200'],
+                'data.personnel_direction.directeur.sexe' => ['sometimes', Rule::in(['femme', 'homme'])],
+                'data.personnel_direction.directeur.qualification' => ['sometimes', 'string', 'max:150'],
+                'data.personnel_direction.directeur.assure_classe' => ['sometimes', 'boolean'],
+                'data.personnel_administration' => ['sometimes', 'array:personnels'],
+                'data.personnel_administration.personnels' => ['sometimes', 'array', 'max:50'],
+                'data.personnel_administration.personnels.*' => [
+                    'sometimes', 'array:fonction,femmes,hommes',
+                ],
+                'data.personnel_administration.personnels.*.fonction' => [
+                    'sometimes', 'string', 'max:120', 'distinct',
+                ],
+                'data.personnel_administration.personnels.*.femmes' => ['sometimes', 'integer', 'min:0'],
+                'data.personnel_administration.personnels.*.hommes' => ['sometimes', 'integer', 'min:0'],
+                'data.personnels_appui_soutien' => ['sometimes', 'array:fonctions,autres'],
+                'data.personnels_appui_soutien.fonctions' => ['sometimes', 'array'],
+                'data.personnels_appui_soutien.fonctions.*' => [
+                    'sometimes', 'array:fonction,femmes,hommes', 'distinct:fonction',
+                ],
+                'data.personnels_appui_soutien.fonctions.*.fonction' => [
+                    'sometimes', 'string', Rule::in(self::SUPPORT_STAFF_JOBS), 'distinct',
+                ],
+                'data.personnels_appui_soutien.fonctions.*.femmes' => ['sometimes', 'integer', 'min:0'],
+                'data.personnels_appui_soutien.fonctions.*.hommes' => ['sometimes', 'integer', 'min:0'],
+                'data.personnels_appui_soutien.autres' => ['sometimes', 'array'],
+                'data.personnels_appui_soutien.autres.*' => ['sometimes', 'array:designation,femmes,hommes'],
+                'data.personnels_appui_soutien.autres.*.designation' => ['sometimes', 'string', 'max:120'],
+                'data.personnels_appui_soutien.autres.*.femmes' => ['sometimes', 'integer', 'min:0'],
+                'data.personnels_appui_soutien.autres.*.hommes' => ['sometimes', 'integer', 'min:0'],
             ];
 
             if ($reportType === AnnualReportType::Sortie) {
