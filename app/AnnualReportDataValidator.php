@@ -84,6 +84,8 @@ final class AnnualReportDataValidator
         'infrastructures_equipements',
     ];
 
+    private const PRIMARY_LEVELS = ['CP1', 'CP2', 'CE1', 'CE2', 'CM1', 'CM2'];
+
     /**
      * @return array<int, string>
      */
@@ -102,6 +104,53 @@ final class AnnualReportDataValidator
         AnnualReportType $reportType,
         ?EtablissementType $etablissementType = null,
     ): array {
+        if ($etablissementType === EtablissementType::Primaire) {
+            $rules = [
+                'data.effectifs_eleves' => ['sometimes', 'array:niveaux,infrastructures'],
+                'data.effectifs_eleves.niveaux' => ['sometimes', 'array'],
+                'data.effectifs_eleves.niveaux.*' => [
+                    'sometimes', 'array:niveau,classes_pedagogiques,filles,garcons,salles_classe',
+                ],
+                'data.effectifs_eleves.niveaux.*.niveau' => [
+                    'sometimes', 'string', Rule::in(self::PRIMARY_LEVELS), 'distinct',
+                ],
+                'data.effectifs_eleves.niveaux.*.classes_pedagogiques' => ['sometimes', 'integer', 'min:0'],
+                'data.effectifs_eleves.niveaux.*.filles' => ['sometimes', 'integer', 'min:0'],
+                'data.effectifs_eleves.niveaux.*.garcons' => ['sometimes', 'integer', 'min:0'],
+                'data.effectifs_eleves.niveaux.*.salles_classe' => ['sometimes', 'integer', 'min:0'],
+                'data.effectifs_eleves.infrastructures' => ['sometimes', 'array:batiments'],
+                'data.effectifs_eleves.infrastructures.batiments' => ['sometimes', 'integer', 'min:0'],
+                'data.personnel_enseignant' => ['sometimes', 'array:effectif_total,par_niveau'],
+                'data.personnel_enseignant.effectif_total' => ['sometimes', 'array:enseignantes,enseignants'],
+                'data.personnel_enseignant.effectif_total.enseignantes' => ['sometimes', 'integer', 'min:0'],
+                'data.personnel_enseignant.effectif_total.enseignants' => ['sometimes', 'integer', 'min:0'],
+                'data.personnel_enseignant.par_niveau' => ['sometimes', 'array'],
+                'data.personnel_enseignant.par_niveau.*' => ['sometimes', 'array:niveau,enseignantes,enseignants'],
+                'data.personnel_enseignant.par_niveau.*.niveau' => [
+                    'sometimes', 'string', Rule::in(self::PRIMARY_LEVELS), 'distinct',
+                ],
+                'data.personnel_enseignant.par_niveau.*.enseignantes' => ['sometimes', 'integer', 'min:0'],
+                'data.personnel_enseignant.par_niveau.*.enseignants' => ['sometimes', 'integer', 'min:0'],
+            ];
+
+            if ($reportType === AnnualReportType::Sortie) {
+                $rules += [
+                    'data.resultats_examens' => ['sometimes', 'array:examens'],
+                    'data.resultats_examens.examens' => ['sometimes', 'array'],
+                    'data.resultats_examens.examens.*' => ['sometimes', 'array:examen,candidats,admis'],
+                    'data.resultats_examens.examens.*.examen' => ['sometimes', 'string', 'in:CEP'],
+                    'data.resultats_examens.examens.*.candidats' => ['sometimes', 'array:filles,garcons'],
+                    'data.resultats_examens.examens.*.candidats.filles' => ['sometimes', 'integer', 'min:0'],
+                    'data.resultats_examens.examens.*.candidats.garcons' => ['sometimes', 'integer', 'min:0'],
+                    'data.resultats_examens.examens.*.admis' => ['sometimes', 'array:filles,garcons'],
+                    'data.resultats_examens.examens.*.admis.filles' => ['sometimes', 'integer', 'min:0'],
+                    'data.resultats_examens.examens.*.admis.garcons' => ['sometimes', 'integer', 'min:0'],
+                ];
+            }
+
+            return $rules;
+        }
+
         if ($etablissementType !== EtablissementType::Secondaire) {
             return [];
         }

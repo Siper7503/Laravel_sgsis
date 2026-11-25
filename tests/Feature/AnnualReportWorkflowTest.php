@@ -24,7 +24,7 @@ class AnnualReportWorkflowTest extends TestCase
         ]);
         $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
         $agent->etablissements()->attach($etablissement);
-        $data = $this->completeReportData();
+        $data = $this->primaryReportData();
 
         $created = $this->actingAs($agent)->postJson(
             '/api/etablissements/'.$etablissement->id.'/annual-reports',
@@ -75,7 +75,7 @@ class AnnualReportWorkflowTest extends TestCase
         ]);
         $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
         $agent->etablissements()->attach($etablissement);
-        $data = $this->completeReportData();
+        $data = $this->primaryReportData();
 
         $report = $this->actingAs($agent)
             ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
@@ -160,8 +160,21 @@ class AnnualReportWorkflowTest extends TestCase
         $agent->etablissements()->attach($etablissement);
         $reportData = $this->completeReportData();
         $reportData['effectifs_eleves'] = [
-            'cycles_primaires' => [
-                ['niveau' => 'CP1', 'filles' => 31, 'garcons' => 28],
+            'niveaux' => [
+                [
+                    'niveau' => 'CP1',
+                    'classes_pedagogiques' => 2,
+                    'filles' => 31,
+                    'garcons' => 28,
+                    'salles_classe' => 2,
+                ],
+            ],
+            'infrastructures' => ['batiments' => 3],
+        ];
+        $reportData['personnel_enseignant'] = [
+            'effectif_total' => ['enseignantes' => 4, 'enseignants' => 3],
+            'par_niveau' => [
+                ['niveau' => 'CP1', 'enseignantes' => 1, 'enseignants' => 1],
             ],
         ];
 
@@ -171,6 +184,9 @@ class AnnualReportWorkflowTest extends TestCase
                 'data' => $reportData,
             ])
             ->assertCreated()
+            ->assertJsonPath('data.data.effectifs_eleves.infrastructures.batiments', 3)
+            ->assertJsonPath('data.data.personnel_enseignant.effectif_total.enseignantes', 4)
+            ->assertJsonPath('data.data.personnel_enseignant.par_niveau.0.enseignantes', 1)
             ->json('data.id');
 
         $this->postJson('/api/annual-reports/'.$reportId.'/submit')
@@ -185,6 +201,100 @@ class AnnualReportWorkflowTest extends TestCase
             'id' => $reportId,
             'status' => 'draft',
         ]);
+    }
+
+    public function test_primary_draft_rejects_negative_level_staff_and_infrastructure_counts(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['effectifs_eleves'] = [
+            'niveaux' => [[
+                'niveau' => 'CP1',
+                'classes_pedagogiques' => 1,
+                'filles' => 10,
+                'garcons' => 12,
+                'salles_classe' => 1,
+            ]],
+            'infrastructures' => ['batiments' => 1],
+        ];
+        $reportData['personnel_enseignant'] = [
+            'effectif_total' => ['enseignantes' => 4, 'enseignants' => 3],
+            'par_niveau' => [[
+                'niveau' => 'CP1',
+                'enseignantes' => -1,
+                'enseignants' => 1,
+            ]],
+        ];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data.personnel_enseignant.par_niveau.0.enseignantes');
+
+        $this->assertDatabaseCount('annual_reports', 0);
+    }
+
+    public function test_primary_draft_rejects_duplicate_level_rows(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->primaryReportData();
+        $reportData['effectifs_eleves']['niveaux'][] = $reportData['effectifs_eleves']['niveaux'][0];
+        $reportData['personnel_enseignant']['par_niveau'][] = $reportData['personnel_enseignant']['par_niveau'][0];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'data.effectifs_eleves.niveaux.1.niveau',
+                'data.personnel_enseignant.par_niveau.1.niveau',
+            ]);
+
+        $this->assertDatabaseCount('annual_reports', 0);
+    }
+
+    public function test_primary_sortie_draft_rejects_negative_cep_results(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->primaryReportData();
+        $reportData['resultats_examens'] = [
+            'examens' => [[
+                'examen' => 'CEP',
+                'candidats' => ['filles' => 20, 'garcons' => 18],
+                'admis' => ['filles' => -1, 'garcons' => 16],
+            ]],
+        ];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'report_type' => 'sortie',
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data.resultats_examens.examens.0.admis.filles');
+
+        $this->assertDatabaseCount('annual_reports', 0);
     }
 
     public function test_sortie_report_cannot_be_submitted_when_admitted_count_exceeds_candidates(): void
@@ -1000,6 +1110,34 @@ class AnnualReportWorkflowTest extends TestCase
                 ],
             ];
         }
+
+        return $data;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function primaryReportData(): array
+    {
+        $data = $this->completeReportData();
+        $data['effectifs_eleves'] = [
+            'niveaux' => [[
+                'niveau' => 'CP1',
+                'classes_pedagogiques' => 2,
+                'filles' => 31,
+                'garcons' => 28,
+                'salles_classe' => 2,
+            ]],
+            'infrastructures' => ['batiments' => 3],
+        ];
+        $data['personnel_enseignant'] = [
+            'effectif_total' => ['enseignantes' => 4, 'enseignants' => 3],
+            'par_niveau' => [[
+                'niveau' => 'CP1',
+                'enseignantes' => 1,
+                'enseignants' => 1,
+            ]],
+        ];
 
         return $data;
     }
