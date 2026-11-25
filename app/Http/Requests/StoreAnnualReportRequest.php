@@ -6,10 +6,12 @@ use App\AnnualReportSections;
 use App\AnnualReportType;
 use App\Models\AnnualReport;
 use App\Models\Etablissement;
+use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreAnnualReportRequest extends FormRequest
 {
@@ -60,5 +62,32 @@ class StoreAnnualReportRequest extends FormRequest
         $etablissementType = $etablissement instanceof Etablissement ? $etablissement->type : null;
 
         return $rules + AnnualReportSections::draftValidationRules($reportType, $etablissementType);
+    }
+
+    /**
+     * @return array<int, Closure(Validator): void>
+     */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            if ($validator->errors()->has('school_year')) {
+                return;
+            }
+
+            $schoolYear = $this->input('school_year');
+
+            if (! is_string($schoolYear)) {
+                return;
+            }
+
+            [$startYear, $endYear] = array_map('intval', explode('-', $schoolYear));
+
+            if ($endYear !== $startYear + 1) {
+                $validator->errors()->add(
+                    'school_year',
+                    'L’année scolaire doit couvrir deux années consécutives.',
+                );
+            }
+        }];
     }
 }

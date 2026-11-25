@@ -96,6 +96,26 @@ class AnnualReportWorkflowTest extends TestCase
         $this->assertDatabaseCount('annual_reports', 2);
     }
 
+    public function test_agent_cannot_create_a_report_for_non_consecutive_school_years(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2029',
+                'data' => $this->completeReportData(),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('school_year');
+
+        $this->assertDatabaseCount('annual_reports', 0);
+    }
+
     public function test_primary_report_does_not_use_the_secondary_enrollment_schema(): void
     {
         $agent = User::factory()->create([
@@ -138,6 +158,347 @@ class AnnualReportWorkflowTest extends TestCase
         $reportId = $this->actingAs($agent)
             ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
                 'report_type' => 'sortie',
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->postJson('/api/annual-reports/'.$reportId.'/submit')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data');
+
+        $this->assertDatabaseHas('annual_reports', [
+            'id' => $reportId,
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_rentree_report_cannot_be_submitted_when_contest_admissions_exceed_attendance(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['resultats_concours']['concours'][0]['admis']['filles'] = 5;
+        $reportData['resultats_concours']['concours'][0]['presents']['filles'] = 4;
+
+        $reportId = $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->postJson('/api/annual-reports/'.$reportId.'/submit')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data');
+
+        $this->assertDatabaseHas('annual_reports', [
+            'id' => $reportId,
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_agent_cannot_save_negative_teaching_staff_counts(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['personnel_enseignant']['public'][0]['permanents']['femmes'] = -1;
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data.personnel_enseignant.public.0.permanents.femmes');
+
+        $this->assertDatabaseCount('annual_reports', 0);
+    }
+
+    public function test_agent_cannot_save_management_staff_with_an_unsupported_sex_value(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['personnel_direction']['public'][0]['sexe'] = 'X';
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data.personnel_direction.public.0.sexe');
+
+        $this->assertDatabaseCount('annual_reports', 0);
+    }
+
+    public function test_agent_cannot_save_negative_administration_staff_counts(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['personnel_administration']['public'][0]['snd']['hommes'] = -1;
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data.personnel_administration.public.0.snd.hommes');
+
+        $this->assertDatabaseCount('annual_reports', 0);
+    }
+
+    public function test_agent_cannot_save_negative_specific_staff_counts(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['personnels_specifiques']['public']['bibliothecaires']['femmes'] = -1;
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data.personnels_specifiques.public.bibliothecaires.femmes');
+
+        $this->assertDatabaseCount('annual_reports', 0);
+    }
+
+    public function test_agent_cannot_save_negative_support_staff_counts(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['personnels_appui_soutien']['public']['agent_public']['gardien_vigile']['femmes'] = -1;
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(
+                'data.personnels_appui_soutien.public.agent_public.gardien_vigile.femmes',
+            );
+
+        $this->assertDatabaseCount('annual_reports', 0);
+    }
+
+    public function test_submission_requires_a_reason_when_a_start_of_year_activity_was_not_realized(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['preparation_rentree']['activites']['elaboration_budget']['realisee'] = false;
+        $reportData['preparation_rentree']['activites']['elaboration_budget']['observations'] = null;
+
+        $reportId = $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->postJson('/api/annual-reports/'.$reportId.'/submit')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data');
+
+        $this->assertDatabaseHas('annual_reports', [
+            'id' => $reportId,
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_submission_requires_the_motto_text_when_the_establishment_has_a_motto(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['organisation_etablissement']['devise']['texte'] = null;
+
+        $reportId = $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->postJson('/api/annual-reports/'.$reportId.'/submit')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data');
+
+        $this->assertDatabaseHas('annual_reports', [
+            'id' => $reportId,
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_submission_rejects_a_partnership_without_its_contact_information(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['partenariats'] = [[
+            'type' => 'Partenaire local',
+            'denomination' => 'Association scolaire',
+            'domaines_action' => 'Appui pédagogique',
+            'date_mise_en_oeuvre' => 'Septembre 2026',
+            'responsable' => 'Mariam Sawadogo',
+        ]];
+
+        $reportId = $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->postJson('/api/annual-reports/'.$reportId.'/submit')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data');
+
+        $this->assertDatabaseHas('annual_reports', [
+            'id' => $reportId,
+            'status' => 'draft',
+        ]);
+    }
+
+    public function test_agent_cannot_save_numeric_text_in_a_difficulty_description(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['difficultes_solutions']['domaines']['pedagogique']['difficultes'] = ['Erreur'];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data.difficultes_solutions.domaines.pedagogique.difficultes');
+
+        $this->assertDatabaseCount('annual_reports', 0);
+    }
+
+    public function test_agent_cannot_save_negative_vocational_student_counts(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['eleves_metiers']['metiers'] = [[
+            'metier' => 'Mécanique',
+            'filles' => 2,
+            'garcons' => -1,
+        ]];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data.eleves_metiers.metiers.0.garcons');
+
+        $this->assertDatabaseCount('annual_reports', 0);
+    }
+
+    public function test_agent_cannot_save_negative_edi_counts(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $reportData['effectifs_edi']['post_primaire'] = [[
+            'niveau' => '3e',
+            'filles' => -1,
+            'garcons' => 2,
+        ]];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $reportData,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data.effectifs_edi.post_primaire.0.filles');
+
+        $this->assertDatabaseCount('annual_reports', 0);
+    }
+
+    public function test_submission_rejects_duplicate_teaching_discipline_rows_in_one_category(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $reportData = $this->completeReportData();
+        $duplicateRow = $reportData['personnel_enseignant']['public'][0];
+        $duplicateRow['discipline'] = mb_strtolower($duplicateRow['discipline']);
+        $reportData['personnel_enseignant']['public'][] = $duplicateRow;
+
+        $reportId = $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
                 'school_year' => '2026-2027',
                 'data' => $reportData,
             ])
@@ -429,6 +790,161 @@ class AnnualReportWorkflowTest extends TestCase
                 'salles_non_utilisees' => 0,
             ],
         ];
+        $data['effectifs_edi'] = [
+            'post_primaire' => [
+                ['niveau' => '3e', 'filles' => 1, 'garcons' => 2],
+            ],
+            'secondaire' => [
+                ['niveau' => '2nde', 'serie' => 'A', 'filles' => 0, 'garcons' => 0],
+            ],
+        ];
+        $data['resultats_concours'] = [
+            'concours' => array_map(
+                fn (string $contest): array => [
+                    'concours' => $contest,
+                    'inscrits' => ['filles' => 0, 'garcons' => 0],
+                    'presents' => ['filles' => 0, 'garcons' => 0],
+                    'admis' => ['filles' => 0, 'garcons' => 0],
+                ],
+                ['entree_2nde', 'entree_1ere_bep', 'entree_1ere_bac_pro'],
+            ),
+        ];
+        $data['personnel_enseignant'] = [
+            'public' => [
+                [
+                    'discipline' => 'Français',
+                    'permanents' => ['femmes' => 3, 'hommes' => 5],
+                    'non_permanents' => ['femmes' => 1, 'hommes' => 0],
+                    'vacataires' => ['femmes' => 0, 'hommes' => 0],
+                    'postes_a_pourvoir' => 0,
+                ],
+            ],
+            'prive' => [],
+        ];
+        $data['personnel_direction'] = [
+            'public' => [
+                [
+                    'fonction' => 'Proviseur',
+                    'nom_complet' => 'Aminata Ouédraogo',
+                    'sexe' => 'femme',
+                    'titre_capacite' => 'CAPES',
+                    'disciplines_enseignees' => ['Français'],
+                    'observations' => null,
+                ],
+            ],
+            'prive' => [],
+        ];
+        $data['personnel_administration'] = [
+            'public' => [
+                [
+                    'fonction' => 'Conseiller d’éducation',
+                    'fonctionnaire' => ['femmes' => 1, 'hommes' => 1],
+                    'snd' => ['femmes' => 0, 'hommes' => 0],
+                    'cooperant' => ['femmes' => 0, 'hommes' => 0],
+                    'benevole' => ['femmes' => 0, 'hommes' => 0],
+                    'contractuel_etablissement' => ['femmes' => 0, 'hommes' => 0],
+                    'autres' => ['femmes' => 0, 'hommes' => 0],
+                    'postes_a_pourvoir' => 0,
+                ],
+            ],
+            'prive' => [
+                [
+                    'fonction' => 'Secrétaire',
+                    'permanent' => ['femmes' => 1, 'hommes' => 0],
+                    'cooperant' => ['femmes' => 0, 'hommes' => 0],
+                    'benevole' => ['femmes' => 0, 'hommes' => 0],
+                    'contractuel_etablissement' => ['femmes' => 0, 'hommes' => 0],
+                    'autres' => ['femmes' => 0, 'hommes' => 0],
+                    'postes_a_pourvoir' => 0,
+                ],
+            ],
+        ];
+        $specificStaffCategories = [
+            'bibliothecaires',
+            'techniciens_superieurs_labo_atelier',
+            'laborantins',
+            'agents_action_sociale',
+            'personnel_medico_scolaire',
+        ];
+        $data['personnels_specifiques'] = [
+            'public' => array_fill_keys($specificStaffCategories, ['femmes' => 0, 'hommes' => 0]),
+            'prive' => array_fill_keys($specificStaffCategories, ['femmes' => 0, 'hommes' => 0]),
+        ];
+        $supportStaffJobs = [
+            'gardien_vigile',
+            'agent_liaison',
+            'cantiniere',
+            'chauffeur',
+            'reprographe',
+            'manoeuvre',
+        ];
+        $supportEmploymentRows = array_fill_keys(
+            ['agent_public', 'agent_communal', 'contractuel_volontaire'],
+            array_fill_keys($supportStaffJobs, ['femmes' => 0, 'hommes' => 0]) + ['autres' => []],
+        );
+        $data['personnels_appui_soutien'] = [
+            'public' => $supportEmploymentRows,
+            'prive' => $supportEmploymentRows,
+        ];
+        $preparationActivityKeys = [
+            'elaboration_budget',
+            'rencontre_conseil_ecole',
+            'rencontre_autorites',
+            'preparation_emplois_temps',
+            'affectation_eleves_concours',
+            'affectation_personnels_convenances',
+        ];
+        $data['preparation_rentree'] = [
+            'activites' => array_fill_keys($preparationActivityKeys, [
+                'realisee' => true,
+                'date_periode' => 'Septembre 2026',
+                'observations' => null,
+            ]),
+            'autres' => [],
+        ];
+        $startOfYearActivityKeys = [
+            'conseil_direction',
+            'entretien_reparations',
+            'nettoyage_domaine_scolaire',
+            'conseil_gestion',
+            'commission_recrutement',
+            'remise_emplois_temps',
+            'preparation_cahiers_registres',
+            'conseil_etablissement',
+            'conseil_professeurs',
+            'conseil_discipline',
+            'conseils_enseignement',
+            'accueil_installation_eleves',
+        ];
+        $data['deroulement_rentree'] = [
+            'activites' => array_fill_keys($startOfYearActivityKeys, [
+                'realisee' => true,
+                'date_periode' => 'Octobre 2026',
+                'observations' => null,
+            ]),
+            'autres' => [],
+        ];
+        $data['organisation_etablissement'] = [
+            'devise' => ['existe' => true, 'texte' => 'Travail et discipline'],
+            'charte' => true,
+            'reglement_interieur_specifique' => true,
+            'projet_etablissement' => false,
+        ];
+        $difficultyDomains = [
+            'pedagogique',
+            'ressources_humaines',
+            'financier',
+            'matieres_oeuvre',
+            'infrastructures_equipements',
+        ];
+        $data['difficultes_solutions'] = [
+            'domaines' => array_fill_keys($difficultyDomains, [
+                'difficultes' => null,
+                'solutions_envisagees' => null,
+            ]),
+            'autres' => [],
+        ];
+        $data['eleves_metiers'] = ['metiers' => []];
 
         if ($reportType === AnnualReportType::Sortie) {
             $data['resultats_examens'] = [
