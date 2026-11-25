@@ -27,13 +27,13 @@ class UserController extends Controller
                 ? UserFunction::from($validated['organizational_function'])
                 : null,
             'is_active' => true,
+            'email_verified_at' => now(),
         ])->save();
 
-        $user->sendEmailVerificationNotification();
         Password::sendResetLink(['email' => $user->email]);
 
         return response()->json([
-            'message' => 'Compte cree. Des liens de verification et de definition du mot de passe ont ete envoyes.',
+            'message' => 'Compte cree et active. Un lien de definition du mot de passe a ete envoye.',
             'data' => [
                 'id' => $user->id,
                 'name' => $user->name,

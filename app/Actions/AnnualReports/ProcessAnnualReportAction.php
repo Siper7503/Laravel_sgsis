@@ -20,14 +20,15 @@ class ProcessAnnualReportAction
         Etablissement $etablissement,
         User $actor,
         string $schoolYear,
+        AnnualReportType $reportType,
         array $data,
     ): AnnualReport {
-        return DB::transaction(function () use ($etablissement, $actor, $schoolYear, $data): AnnualReport {
+        return DB::transaction(function () use ($etablissement, $actor, $schoolYear, $reportType, $data): AnnualReport {
             $report = AnnualReport::create([
                 'etablissement_id' => $etablissement->getKey(),
                 'created_by' => $actor->getKey(),
                 'school_year' => $schoolYear,
-                'report_type' => AnnualReportType::Rentree,
+                'report_type' => $reportType,
                 'form_version' => 1,
                 'status' => AnnualReportStatus::Draft,
                 'data' => $data,
@@ -71,9 +72,16 @@ class ProcessAnnualReportAction
                 ]);
             }
 
-            $missingSections = AnnualReportSections::missing($report->data ?? []);
+            $missingSections = AnnualReportSections::missing($report->data ?? [], $report->report_type);
 
-            if ($missingSections !== [] || ! AnnualReportSections::hasValidStructure($report->data ?? [])) {
+            if (
+                $missingSections !== []
+                || ! AnnualReportSections::hasValidStructure(
+                    $report->data ?? [],
+                    $report->report_type,
+                    $report->etablissement->type,
+                )
+            ) {
                 throw ValidationException::withMessages([
                     'data' => [
                         'Toutes les sections du rapport doivent être présentes sous forme de tableaux.',

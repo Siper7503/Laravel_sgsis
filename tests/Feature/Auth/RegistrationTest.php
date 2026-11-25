@@ -52,6 +52,7 @@ class RegistrationTest extends TestCase
             'email' => 'public-usager@example.com',
             'role' => 'usager',
             'is_active' => true,
+            'email_verified_at' => null,
         ]);
     }
 }

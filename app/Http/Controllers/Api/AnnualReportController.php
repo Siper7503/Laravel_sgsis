@@ -83,10 +83,16 @@ class AnnualReportController extends Controller
         $actor = $request->user();
         abort_unless($actor instanceof User, 401);
 
+        $reportTypeInput = $request->validated('report_type');
+        $reportType = is_string($reportTypeInput)
+            ? AnnualReportType::tryFrom($reportTypeInput)
+            : null;
+
         $report = $processAnnualReport->createDraft(
             $etablissement,
             $actor,
             $request->validated('school_year'),
+            $reportType ?? AnnualReportType::Rentree,
             $request->validated('data'),
         );
 

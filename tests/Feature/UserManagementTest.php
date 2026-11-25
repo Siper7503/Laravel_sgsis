@@ -16,7 +16,7 @@ class UserManagementTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_can_create_an_active_agent_and_send_setup_notifications(): void
+    public function test_admin_can_create_an_active_verified_agent_and_send_a_password_setup_link(): void
     {
         Notification::fake();
         $admin = User::factory()->create(['role' => UserRole::Admin]);
@@ -35,8 +35,8 @@ class UserManagementTest extends TestCase
 
         $agent = User::query()->where('email', 'agent@example.com')->firstOrFail();
 
-        $this->assertNull($agent->email_verified_at);
-        Notification::assertSentTo($agent, VerifyEmail::class);
+        $this->assertNotNull($agent->email_verified_at);
+        Notification::assertNotSentTo($agent, VerifyEmail::class);
         Notification::assertSentTo($agent, ResetPassword::class);
     }
 

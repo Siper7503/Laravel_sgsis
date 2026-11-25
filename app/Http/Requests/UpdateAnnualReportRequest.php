@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\AnnualReportSections;
+use App\AnnualReportType;
 use App\Models\AnnualReport;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -28,14 +29,21 @@ class UpdateAnnualReportRequest extends FormRequest
      */
     public function rules(): array
     {
+        $annualReport = $this->route('annualReport');
+        $reportType = $annualReport instanceof AnnualReport
+            ? $annualReport->report_type
+            : AnnualReportType::Rentree;
+        $etablissementType = $annualReport instanceof AnnualReport
+            ? $annualReport->etablissement->type
+            : null;
         $rules = [
-            'data' => ['required', 'array:'.implode(',', AnnualReportSections::KEYS)],
+            'data' => ['required', 'array:'.implode(',', AnnualReportSections::keysForType($reportType))],
         ];
 
-        foreach (AnnualReportSections::KEYS as $section) {
+        foreach (AnnualReportSections::keysForType($reportType) as $section) {
             $rules["data.$section"] = ['sometimes', 'array'];
         }
 
-        return $rules;
+        return $rules + AnnualReportSections::draftValidationRules($reportType, $etablissementType);
     }
 }
