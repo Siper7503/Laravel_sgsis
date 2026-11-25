@@ -67,6 +67,40 @@ class AnnualReportWorkflowTest extends TestCase
         $this->assertDatabaseCount('annual_report_events', 2);
     }
 
+    public function test_partial_draft_update_preserves_sections_not_in_the_request(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
+        $agent->etablissements()->attach($etablissement);
+        $data = $this->completeReportData();
+
+        $report = $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $data,
+            ])
+            ->assertCreated()
+            ->json('data');
+
+        $changedIdentification = $data['identification'];
+        $changedIdentification['administrative_code'] = 'ETB-UPDATED';
+
+        $this->putJson('/api/annual-reports/'.$report['id'], [
+            'data' => ['identification' => $changedIdentification],
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.data.identification.administrative_code', 'ETB-UPDATED')
+            ->assertJsonPath('data.data.effectifs_eleves', $data['effectifs_eleves']);
+
+        $this->assertSame(
+            $data['effectifs_eleves'],
+            AnnualReport::query()->findOrFail($report['id'])->data['effectifs_eleves'],
+        );
+    }
+
     public function test_agent_can_create_one_rentree_and_one_sortie_report_for_the_same_school_year(): void
     {
         $agent = User::factory()->create([
@@ -116,7 +150,7 @@ class AnnualReportWorkflowTest extends TestCase
         $this->assertDatabaseCount('annual_reports', 0);
     }
 
-    public function test_primary_report_does_not_use_the_secondary_enrollment_schema(): void
+    public function test_primary_report_cannot_be_submitted_before_its_form_is_defined(): void
     {
         $agent = User::factory()->create([
             'role' => UserRole::Agent,
@@ -140,8 +174,17 @@ class AnnualReportWorkflowTest extends TestCase
             ->json('data.id');
 
         $this->postJson('/api/annual-reports/'.$reportId.'/submit')
-            ->assertOk()
-            ->assertJsonPath('data.status', 'submitted_to_dse');
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data')
+            ->assertJsonPath(
+                'errors.data.0',
+                'La soumission des rapports primaires sera activée après la définition et la validation de leur formulaire.',
+            );
+
+        $this->assertDatabaseHas('annual_reports', [
+            'id' => $reportId,
+            'status' => 'draft',
+        ]);
     }
 
     public function test_sortie_report_cannot_be_submitted_when_admitted_count_exceeds_candidates(): void

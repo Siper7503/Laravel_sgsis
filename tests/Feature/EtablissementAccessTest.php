@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\AnnualReport;
+use App\Models\AnnualReportEvent;
 use App\Models\Etablissement;
 use App\Models\User;
 use App\UserFunction;
@@ -246,7 +248,7 @@ class EtablissementAccessTest extends TestCase
         $this->assertDatabaseMissing('etablissements', ['code' => 'ETB-001']);
     }
 
-    public function test_agent_only_sees_and_updates_assigned_establishments(): void
+    public function test_agent_can_update_only_contact_details_for_assigned_establishments(): void
     {
         $agent = User::factory()->create(['role' => UserRole::Agent]);
         $assigned = Etablissement::factory()->create();
@@ -264,12 +266,27 @@ class EtablissementAccessTest extends TestCase
             ->assertNotFound();
 
         $this->actingAs($agent)
-            ->putJson('/api/etablissements/'.$assigned->id, ['nom' => 'Ecole Modifiee'])
+            ->putJson('/api/etablissements/'.$assigned->id, [
+                'adresse' => 'Secteur 12, rue 4',
+                'telephone' => '+226 70 00 00 00',
+                'email' => 'ecole@example.com',
+            ])
             ->assertOk();
 
         $this->assertDatabaseHas('etablissements', [
             'id' => $assigned->id,
-            'nom' => 'Ecole Modifiee',
+            'adresse' => 'Secteur 12, rue 4',
+            'telephone' => '+226 70 00 00 00',
+            'email' => 'ecole@example.com',
+        ]);
+
+        $this->actingAs($agent)
+            ->putJson('/api/etablissements/'.$assigned->id, ['nom' => 'Nom modifié'])
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('etablissements', [
+            'id' => $assigned->id,
+            'nom' => $assigned->nom,
         ]);
 
         $this->actingAs($agent)
@@ -288,5 +305,43 @@ class EtablissementAccessTest extends TestCase
             ->assertForbidden();
 
         $this->assertModelExists($etablissement);
+    }
+
+    public function test_admin_cannot_delete_establishment_with_reports_or_their_history(): void
+    {
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+        $etablissement = Etablissement::factory()->create();
+        $creator = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $report = AnnualReport::create([
+            'etablissement_id' => $etablissement->id,
+            'created_by' => $creator->id,
+            'school_year' => '2026-2027',
+            'report_type' => 'rentree',
+            'form_version' => 1,
+            'status' => 'approved',
+            'data' => [],
+        ]);
+        $event = AnnualReportEvent::create([
+            'annual_report_id' => $report->id,
+            'actor_id' => $creator->id,
+            'action' => 'approved',
+            'from_status' => 'submitted_to_dgss',
+            'to_status' => 'approved',
+        ]);
+
+        $this->actingAs($admin)
+            ->deleteJson('/api/etablissements/'.$etablissement->id)
+            ->assertConflict()
+            ->assertJsonPath(
+                'message',
+                'Cet établissement ne peut pas être supprimé, car il possède des rapports annuels. Désactivez-le pour conserver son historique.',
+            );
+
+        $this->assertModelExists($etablissement);
+        $this->assertModelExists($report);
+        $this->assertModelExists($event);
     }
 }

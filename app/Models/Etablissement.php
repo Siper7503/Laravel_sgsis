@@ -7,6 +7,7 @@ use Database\Factories\EtablissementFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property EtablissementType $type
@@ -42,6 +43,16 @@ class Etablissement extends Model
             'etablissement_id',
             'agent_id',
         )->withTimestamps();
+    }
+
+    /**
+     * Annual reports recorded for this establishment.
+     *
+     * @return HasMany<AnnualReport, $this>
+     */
+    public function annualReports(): HasMany
+    {
+        return $this->hasMany(AnnualReport::class);
     }
 
     protected function casts(): array

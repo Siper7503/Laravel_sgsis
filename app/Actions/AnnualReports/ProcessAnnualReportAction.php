@@ -5,6 +5,7 @@ namespace App\Actions\AnnualReports;
 use App\AnnualReportSections;
 use App\AnnualReportStatus;
 use App\AnnualReportType;
+use App\EtablissementType;
 use App\Models\AnnualReport;
 use App\Models\Etablissement;
 use App\Models\User;
@@ -54,7 +55,9 @@ class ProcessAnnualReportAction
                 ]);
             }
 
-            $report->update(['data' => $data]);
+            $report->update([
+                'data' => array_replace($report->data ?? [], $data),
+            ]);
             $this->recordEvent($report, $actor, 'draft_updated', $report->status, $report->status);
 
             return $report;
@@ -69,6 +72,14 @@ class ProcessAnnualReportAction
             if (! $report->status->canBeEditedByAgent()) {
                 throw ValidationException::withMessages([
                     'status' => ['Ce rapport ne peut pas être soumis à cette étape.'],
+                ]);
+            }
+
+            if ($report->etablissement->type === EtablissementType::Primaire) {
+                throw ValidationException::withMessages([
+                    'data' => [
+                        'La soumission des rapports primaires sera activée après la définition et la validation de leur formulaire.',
+                    ],
                 ]);
             }
 

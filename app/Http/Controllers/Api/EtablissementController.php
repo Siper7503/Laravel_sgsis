@@ -125,6 +125,14 @@ class EtablissementController extends Controller
         $this->hideUnassignedEstablishmentFromAgent($request->user(), $etablissement);
         Gate::authorize('update', $etablissement);
 
+        if ($request->user()->role === UserRole::Agent) {
+            abort_unless(
+                array_diff($request->keys(), ['adresse', 'telephone', 'email']) === [],
+                403,
+                'Un agent peut uniquement modifier les coordonnées de contact de son établissement.',
+            );
+        }
+
         if ($request->exists('latitude') || $request->exists('longitude')) {
             Gate::authorize('updateLocation', $etablissement);
         }
@@ -157,6 +165,12 @@ class EtablissementController extends Controller
     {
         $this->hideUnassignedEstablishmentFromAgent($request->user(), $etablissement);
         Gate::authorize('delete', $etablissement);
+
+        if ($etablissement->annualReports()->exists()) {
+            return response()->json([
+                'message' => 'Cet établissement ne peut pas être supprimé, car il possède des rapports annuels. Désactivez-le pour conserver son historique.',
+            ], 409);
+        }
 
         $etablissement->delete();
 
