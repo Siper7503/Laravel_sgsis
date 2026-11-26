@@ -164,6 +164,22 @@ final class AnnualReportDataValidator
                 'data.personnels_appui_soutien.autres.*.designation' => ['sometimes', 'string', 'max:120'],
                 'data.personnels_appui_soutien.autres.*.femmes' => ['sometimes', 'integer', 'min:0'],
                 'data.personnels_appui_soutien.autres.*.hommes' => ['sometimes', 'integer', 'min:0'],
+                'data.organes_gestion' => ['sometimes', 'array:instances'],
+                'data.organes_gestion.instances' => ['sometimes', 'array', 'max:50'],
+                'data.organes_gestion.instances.*' => [
+                    'sometimes', 'array:nom,existe,motif_absence,membres',
+                ],
+                'data.organes_gestion.instances.*.nom' => ['sometimes', 'string', 'max:150'],
+                'data.organes_gestion.instances.*.existe' => ['sometimes', 'boolean'],
+                'data.organes_gestion.instances.*.motif_absence' => ['sometimes', 'nullable', 'string', 'max:1000'],
+                'data.organes_gestion.instances.*.membres' => ['sometimes', 'array', 'max:100'],
+                'data.organes_gestion.instances.*.membres.*' => [
+                    'sometimes', 'array:nom_complet,titre,statut,contact',
+                ],
+                'data.organes_gestion.instances.*.membres.*.nom_complet' => ['sometimes', 'string', 'max:200'],
+                'data.organes_gestion.instances.*.membres.*.titre' => ['sometimes', 'string', 'max:150'],
+                'data.organes_gestion.instances.*.membres.*.statut' => ['sometimes', 'string', 'max:120'],
+                'data.organes_gestion.instances.*.membres.*.contact' => ['sometimes', 'string', 'max:100'],
             ];
 
             foreach ([

@@ -179,6 +179,42 @@ class AnnualReportWorkflowTest extends TestCase
             ->assertJsonPath('data.data.preparation_rentree.activites.rencontre_autorites.realisee', true);
     }
 
+    public function test_primary_draft_accepts_declared_management_bodies_and_members(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
+        $agent->etablissements()->attach($etablissement);
+        $data = $this->primaryReportData();
+        $data['organes_gestion'] = [
+            'instances' => [[
+                'nom' => 'Conseil de l’école',
+                'existe' => true,
+                'membres' => [[
+                    'nom_complet' => 'Aminata Sawadogo',
+                    'titre' => 'Présidente',
+                    'statut' => 'Parent d’élève',
+                    'contact' => '70000000',
+                ]],
+            ], [
+                'nom' => 'Comité local',
+                'existe' => false,
+                'motif_absence' => 'En cours de mise en place',
+            ]],
+        ];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $data,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.data.organes_gestion.instances.0.membres.0.nom_complet', 'Aminata Sawadogo')
+            ->assertJsonPath('data.data.organes_gestion.instances.1.existe', false);
+    }
+
     public function test_primary_report_cannot_be_submitted_before_its_form_is_defined(): void
     {
         $agent = User::factory()->create([

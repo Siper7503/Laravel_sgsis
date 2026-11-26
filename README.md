@@ -8,6 +8,10 @@ Les rapports de rentrée et de sortie sont enregistrés en brouillon puis suiven
 
 ### Rubrique VIII — Préparation et déroulement de la rentrée
 
-Pour les établissements secondaires, le rapport complet exige les activités prévues de préparation et de rentrée administrative définies dans le formulaire. Pour les écoles primaires, l’agent peut renseigner uniquement les activités qui concernent son école. Chaque activité renseignée peut contenir son état de réalisation, sa date ou période et une observation. Une activité « Autre » peut être ajoutée avec un libellé libre.
+Pour les établissements secondaires, le rapport complet exige les activités prévues du formulaire. Pour les écoles primaires, l’agent peut renseigner uniquement les activités qui concernent son école. Une activité comprend sa réalisation, sa date ou période et, si nécessaire, une observation. L’agent peut aussi ajouter une activité libre.
 
-Le formulaire primaire est encore en cours de définition. Sa soumission reste désactivée tant que l’ensemble des rubriques n’a pas été défini et validé.
+### Rubrique IX — Organes de gestion (primaire)
+
+Les brouillons primaires acceptent les instances de gestion déclarées par l’école, sans imposer une liste d’organes dont l’applicabilité n’est pas confirmée. Chaque instance peut indiquer son nom, son existence, le motif de son absence et ses membres (nom complet, titre, statut et contact). Les règles de complétude du secondaire restent distinctes.
+
+La soumission des rapports primaires reste désactivée jusqu’à la définition et la validation de toutes les rubriques du formulaire.
