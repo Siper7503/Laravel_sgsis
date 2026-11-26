@@ -37,13 +37,13 @@ class UpdateAnnualReportRequest extends FormRequest
             ? $annualReport->etablissement->type
             : null;
         $rules = [
-            'data' => ['required', 'array:'.implode(',', AnnualReportSections::keysForType($reportType))],
+            'data' => ['required', 'array:'.implode(',', AnnualReportSections::keysForType($reportType, $etablissementType))],
         ];
 
-        foreach (AnnualReportSections::keysForType($reportType) as $section) {
+        foreach (AnnualReportSections::keysForType($reportType, $etablissementType) as $section) {
             $rules["data.$section"] = ['sometimes', 'array'];
         }
 
-        return $rules + AnnualReportSections::draftValidationRules($reportType, $etablissementType);
+        return array_merge($rules, AnnualReportSections::draftValidationRules($reportType, $etablissementType));
     }
 }

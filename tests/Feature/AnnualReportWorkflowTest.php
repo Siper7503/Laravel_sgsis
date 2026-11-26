@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\AnnualReportSections;
 use App\AnnualReportType;
+use App\EtablissementType;
 use App\Models\AnnualReport;
 use App\Models\Etablissement;
 use App\Models\User;
@@ -213,6 +214,46 @@ class AnnualReportWorkflowTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.data.organes_gestion.instances.0.membres.0.nom_complet', 'Aminata Sawadogo')
             ->assertJsonPath('data.data.organes_gestion.instances.1.existe', false);
+    }
+
+    public function test_primary_draft_rejects_secondary_only_sections(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
+        $agent->etablissements()->attach($etablissement);
+        $data = $this->primaryReportData();
+        $data['effectifs_edi'] = [];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $data,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data');
+    }
+
+    public function test_secondary_draft_rejects_primary_level_shape(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::Proviseur,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'secondaire']);
+        $agent->etablissements()->attach($etablissement);
+        $data = $this->completeReportData();
+        $data['effectifs_eleves']['niveaux'] = [];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $data,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data.effectifs_eleves');
     }
 
     public function test_primary_report_cannot_be_submitted_before_its_form_is_defined(): void
@@ -1246,6 +1287,9 @@ class AnnualReportWorkflowTest extends TestCase
             ]],
         ];
 
-        return $data;
+        return array_intersect_key(
+            $data,
+            array_flip(AnnualReportSections::keysForType(AnnualReportType::Rentree, EtablissementType::Primaire)),
+        );
     }
 }

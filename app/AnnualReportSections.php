@@ -35,9 +35,11 @@ final class AnnualReportSections
     /**
      * @return array<int, string>
      */
-    public static function keysForType(AnnualReportType $reportType): array
-    {
-        return AnnualReportDataValidator::keysForType($reportType);
+    public static function keysForType(
+        AnnualReportType $reportType,
+        ?EtablissementType $etablissementType = null,
+    ): array {
+        return AnnualReportDataValidator::keysForType($reportType, $etablissementType);
     }
 
     /**

@@ -89,12 +89,25 @@ final class AnnualReportDataValidator
     /**
      * @return array<int, string>
      */
-    public static function keysForType(AnnualReportType $reportType): array
-    {
-        return match ($reportType) {
-            AnnualReportType::Rentree => AnnualReportSections::KEYS,
-            AnnualReportType::Sortie => [...AnnualReportSections::KEYS, 'resultats_examens'],
-        };
+    public static function keysForType(
+        AnnualReportType $reportType,
+        ?EtablissementType $etablissementType = null,
+    ): array {
+        $keys = $etablissementType === EtablissementType::Primaire
+            ? [
+                'identification', 'localisation', 'informations_generales', 'partenariats',
+                'organisation_etablissement', 'effectifs_eleves', 'personnel_enseignant',
+                'personnel_direction', 'personnel_administration', 'personnels_appui_soutien',
+                'preparation_rentree', 'deroulement_rentree', 'organes_gestion',
+                'difficultes_solutions',
+            ]
+            : AnnualReportSections::KEYS;
+
+        if ($reportType === AnnualReportType::Sortie) {
+            $keys[] = 'resultats_examens';
+        }
+
+        return $keys;
     }
 
     /**
@@ -479,7 +492,7 @@ final class AnnualReportDataValidator
         AnnualReportType $reportType = AnnualReportType::Rentree,
         ?EtablissementType $etablissementType = null,
     ): bool {
-        $allowedKeys = self::keysForType($reportType);
+        $allowedKeys = self::keysForType($reportType, $etablissementType);
 
         if (array_diff(array_keys($data), $allowedKeys) !== []) {
             return false;
