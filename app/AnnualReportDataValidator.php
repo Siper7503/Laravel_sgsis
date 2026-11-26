@@ -166,6 +166,29 @@ final class AnnualReportDataValidator
                 'data.personnels_appui_soutien.autres.*.hommes' => ['sometimes', 'integer', 'min:0'],
             ];
 
+            foreach ([
+                'preparation_rentree' => self::PREPARATION_ACTIVITIES,
+                'deroulement_rentree' => self::START_OF_YEAR_ACTIVITIES,
+            ] as $section => $activityKeys) {
+                $sectionPath = "data.$section";
+                $rules[$sectionPath] = ['sometimes', 'array:activites,autres'];
+                $rules["$sectionPath.activites"] = ['sometimes', 'array:'.implode(',', $activityKeys)];
+                $rules["$sectionPath.autres"] = ['sometimes', 'array', 'max:50'];
+                $rules["$sectionPath.autres.*"] = ['sometimes', 'array:activite,realisee,date_periode,observations'];
+                $rules["$sectionPath.autres.*.activite"] = ['sometimes', 'string', 'max:200'];
+                $rules["$sectionPath.autres.*.realisee"] = ['sometimes', 'boolean'];
+                $rules["$sectionPath.autres.*.date_periode"] = ['sometimes', 'nullable', 'string', 'max:100'];
+                $rules["$sectionPath.autres.*.observations"] = ['sometimes', 'nullable', 'string', 'max:1000'];
+
+                foreach ($activityKeys as $activityKey) {
+                    $activityPath = "$sectionPath.activites.$activityKey";
+                    $rules[$activityPath] = ['sometimes', 'array:realisee,date_periode,observations'];
+                    $rules["$activityPath.realisee"] = ['sometimes', 'boolean'];
+                    $rules["$activityPath.date_periode"] = ['sometimes', 'nullable', 'string', 'max:100'];
+                    $rules["$activityPath.observations"] = ['sometimes', 'nullable', 'string', 'max:1000'];
+                }
+            }
+
             if ($reportType === AnnualReportType::Sortie) {
                 $rules += [
                     'data.resultats_examens' => ['sometimes', 'array:examens'],

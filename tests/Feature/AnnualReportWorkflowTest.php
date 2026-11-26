@@ -150,6 +150,35 @@ class AnnualReportWorkflowTest extends TestCase
         $this->assertDatabaseCount('annual_reports', 0);
     }
 
+    public function test_primary_draft_accepts_only_relevant_preparation_activities(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
+        $agent->etablissements()->attach($etablissement);
+        $data = $this->primaryReportData();
+        $data['preparation_rentree'] = [
+            'activites' => [
+                'rencontre_autorites' => [
+                    'realisee' => true,
+                    'date_periode' => 'Septembre 2026',
+                    'observations' => null,
+                ],
+            ],
+            'autres' => [],
+        ];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $data,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.data.preparation_rentree.activites.rencontre_autorites.realisee', true);
+    }
+
     public function test_primary_report_cannot_be_submitted_before_its_form_is_defined(): void
     {
         $agent = User::factory()->create([
