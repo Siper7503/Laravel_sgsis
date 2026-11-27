@@ -86,6 +86,12 @@ final class AnnualReportDataValidator
 
     private const PRIMARY_LEVELS = ['CP1', 'CP2', 'CE1', 'CE2', 'CM1', 'CM2'];
 
+    private const SCHOOL_DAYS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+
+    private const PRIMARY_SCHOOL_PERIODS = [
+        '7h-8h', '8h-9h', '9h-10h', '10h-11h', '11h-12h', '14h-15h', '15h-16h', '16h-17h30',
+    ];
+
     /**
      * @return array<int, string>
      */
@@ -99,7 +105,7 @@ final class AnnualReportDataValidator
                 'organisation_etablissement', 'effectifs_eleves', 'personnel_enseignant',
                 'personnel_direction', 'personnel_administration', 'personnels_appui_soutien',
                 'preparation_rentree', 'deroulement_rentree', 'organes_gestion',
-                'difficultes_solutions',
+                'organisation_pedagogique', 'difficultes_solutions',
             ]
             : AnnualReportSections::KEYS;
 
@@ -193,7 +199,34 @@ final class AnnualReportDataValidator
                 'data.organes_gestion.instances.*.membres.*.titre' => ['sometimes', 'string', 'max:150'],
                 'data.organes_gestion.instances.*.membres.*.statut' => ['sometimes', 'string', 'max:120'],
                 'data.organes_gestion.instances.*.membres.*.contact' => ['sometimes', 'string', 'max:100'],
+                'data.organisation_pedagogique' => ['sometimes', 'array:emplois_du_temps'],
+                'data.organisation_pedagogique.emplois_du_temps' => ['sometimes', 'array', 'max:100'],
+                'data.organisation_pedagogique.emplois_du_temps.*' => [
+                    'sometimes', 'array:niveau,classe,grille,heures_dues,heures_assurees',
+                ],
+                'data.organisation_pedagogique.emplois_du_temps.*.niveau' => [
+                    'sometimes', 'string', Rule::in(self::PRIMARY_LEVELS),
+                ],
+                'data.organisation_pedagogique.emplois_du_temps.*.classe' => ['sometimes', 'string', 'max:100'],
+                'data.organisation_pedagogique.emplois_du_temps.*.grille' => [
+                    'sometimes', 'array:'.implode(',', self::SCHOOL_DAYS),
+                ],
+                'data.organisation_pedagogique.emplois_du_temps.*.heures_dues' => [
+                    'sometimes', 'integer', 'min:0', 'max:60',
+                ],
+                'data.organisation_pedagogique.emplois_du_temps.*.heures_assurees' => [
+                    'sometimes', 'integer', 'min:0', 'max:60',
+                ],
             ];
+
+            foreach (self::SCHOOL_DAYS as $day) {
+                $dayPath = "data.organisation_pedagogique.emplois_du_temps.*.grille.$day";
+                $rules[$dayPath] = ['sometimes', 'array:'.implode(',', self::PRIMARY_SCHOOL_PERIODS)];
+
+                foreach (self::PRIMARY_SCHOOL_PERIODS as $period) {
+                    $rules["$dayPath.$period"] = ['sometimes', 'nullable', 'string', 'max:120'];
+                }
+            }
 
             foreach ([
                 'preparation_rentree' => self::PREPARATION_ACTIVITIES,

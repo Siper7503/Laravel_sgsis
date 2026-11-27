@@ -14,4 +14,8 @@ Pour les établissements secondaires, le rapport complet exige les activités pr
 
 Les brouillons primaires acceptent les instances de gestion déclarées par l’école, sans imposer une liste d’organes dont l’applicabilité n’est pas confirmée. Chaque instance peut indiquer son nom, son existence, le motif de son absence et ses membres (nom complet, titre, statut et contact). Les règles de complétude du secondaire restent distinctes.
 
+### Organisation pédagogique (primaire)
+
+Les brouillons peuvent enregistrer un emploi du temps par classe primaire (CP1 à CM2), du lundi au samedi, sur les créneaux 7h–12h puis 14h–17h30. Les périodes sont 7h–8h, 8h–9h, 9h–10h, 10h–11h, 11h–12h, 14h–15h, 15h–16h et 16h–17h30. Chaque cellule peut contenir une matière ou activité. Les nombres hebdomadaires d’heures dues et assurées sont saisis par classe.
+
 La soumission des rapports primaires reste désactivée jusqu’à la définition et la validation de toutes les rubriques du formulaire.

@@ -256,6 +256,39 @@ class AnnualReportWorkflowTest extends TestCase
             ->assertJsonValidationErrors('data.effectifs_eleves');
     }
 
+    public function test_primary_draft_accepts_class_timetable_on_shared_days_and_periods(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
+        $agent->etablissements()->attach($etablissement);
+        $data = $this->primaryReportData();
+        $data['organisation_pedagogique'] = [
+            'emplois_du_temps' => [[
+                'niveau' => 'CP1',
+                'classe' => 'CP1 A',
+                'grille' => [
+                    'lundi' => ['7h-8h' => 'Lecture'],
+                    'samedi' => ['16h-17h30' => 'Calcul'],
+                ],
+                'heures_dues' => 24,
+                'heures_assurees' => 22,
+            ]],
+        ];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $data,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.data.organisation_pedagogique.emplois_du_temps.0.grille.lundi.7h-8h', 'Lecture')
+            ->assertJsonPath('data.data.organisation_pedagogique.emplois_du_temps.0.grille.samedi.16h-17h30', 'Calcul')
+            ->assertJsonPath('data.data.organisation_pedagogique.emplois_du_temps.0.heures_assurees', 22);
+    }
+
     public function test_primary_report_cannot_be_submitted_before_its_form_is_defined(): void
     {
         $agent = User::factory()->create([
