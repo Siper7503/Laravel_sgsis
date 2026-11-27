@@ -289,6 +289,103 @@ class AnnualReportWorkflowTest extends TestCase
             ->assertJsonPath('data.data.organisation_pedagogique.emplois_du_temps.0.heures_assurees', 22);
     }
 
+    public function test_primary_draft_rejects_non_text_difficulty_descriptions(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
+        $agent->etablissements()->attach($etablissement);
+        $data = $this->primaryReportData();
+        $data['difficultes_solutions']['domaines']['pedagogique']['difficultes'] = ['valeur invalide'];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $data,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data.difficultes_solutions.domaines.pedagogique.difficultes');
+    }
+
+    public function test_primary_draft_validates_partnership_and_establishment_organization_data(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'primaire']);
+        $agent->etablissements()->attach($etablissement);
+        $data = $this->primaryReportData();
+        $data['partenariats'] = [[
+            'type' => 'Association',
+            'denomination' => 'Association locale',
+            'domaines_action' => 'Appui scolaire',
+            'date_mise_en_oeuvre' => 'Septembre 2026',
+            'responsable' => 'Awa Sawadogo',
+            'contact' => '70000000',
+        ]];
+        $data['organisation_etablissement'] = [
+            'devise' => ['existe' => true, 'texte' => 'Réussir ensemble'],
+            'charte' => true,
+            'reglement_interieur_specifique' => true,
+            'projet_etablissement' => false,
+        ];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $data,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.data.partenariats.0.denomination', 'Association locale')
+            ->assertJsonPath('data.data.organisation_etablissement.devise.existe', true);
+    }
+
+    public function test_primary_public_report_accepts_financial_data(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'primaire', 'statut' => 'public']);
+        $agent->etablissements()->attach($etablissement);
+        $data = $this->primaryReportData();
+        $data['situation_financiere'] = [
+            'exercice_precedent' => ['recettes' => ['autres_recettes' => 100000]],
+            'exercice_en_cours' => ['depenses' => ['salaires_personnel' => 50000]],
+        ];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $data,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.data.situation_financiere.exercice_precedent.recettes.autres_recettes', 100000);
+    }
+
+    public function test_primary_private_report_rejects_financial_section(): void
+    {
+        $agent = User::factory()->create([
+            'role' => UserRole::Agent,
+            'organizational_function' => UserFunction::DirecteurEcole,
+        ]);
+        $etablissement = Etablissement::factory()->create(['type' => 'primaire', 'statut' => 'prive']);
+        $agent->etablissements()->attach($etablissement);
+        $data = $this->primaryReportData();
+        $data['situation_financiere'] = [];
+
+        $this->actingAs($agent)
+            ->postJson('/api/etablissements/'.$etablissement->id.'/annual-reports', [
+                'school_year' => '2026-2027',
+                'data' => $data,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('data');
+    }
+
     public function test_primary_report_cannot_be_submitted_before_its_form_is_defined(): void
     {
         $agent = User::factory()->create([

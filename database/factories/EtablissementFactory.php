@@ -23,6 +23,7 @@ class EtablissementFactory extends Factory
             'code' => fake()->unique()->bothify('ETB-####'),
             'nom' => fake()->company(),
             'type' => fake()->randomElement(['primaire', 'secondaire']),
+            'statut' => 'public',
             'arrondissement' => fake()->optional()->city(),
             'adresse' => fake()->optional()->address(),
             'latitude' => fake()->latitude(),

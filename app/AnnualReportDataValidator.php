@@ -98,6 +98,7 @@ final class AnnualReportDataValidator
     public static function keysForType(
         AnnualReportType $reportType,
         ?EtablissementType $etablissementType = null,
+        ?string $etablissementStatus = null,
     ): array {
         $keys = $etablissementType === EtablissementType::Primaire
             ? [
@@ -113,6 +114,10 @@ final class AnnualReportDataValidator
             $keys[] = 'resultats_examens';
         }
 
+        if ($etablissementType === EtablissementType::Primaire && $etablissementStatus === 'public') {
+            $keys[] = 'situation_financiere';
+        }
+
         return $keys;
     }
 
@@ -122,6 +127,7 @@ final class AnnualReportDataValidator
     public static function draftValidationRules(
         AnnualReportType $reportType,
         ?EtablissementType $etablissementType = null,
+        ?string $etablissementStatus = null,
     ): array {
         if ($etablissementType === EtablissementType::Primaire) {
             $rules = [
@@ -158,6 +164,25 @@ final class AnnualReportDataValidator
                 'data.personnel_direction.directeur.sexe' => ['sometimes', Rule::in(['femme', 'homme'])],
                 'data.personnel_direction.directeur.qualification' => ['sometimes', 'string', 'max:150'],
                 'data.personnel_direction.directeur.assure_classe' => ['sometimes', 'boolean'],
+                'data.partenariats' => ['sometimes', 'array', 'max:100'],
+                'data.partenariats.*' => [
+                    'sometimes', 'array:type,denomination,domaines_action,date_mise_en_oeuvre,responsable,contact',
+                ],
+                'data.partenariats.*.type' => ['sometimes', 'string', 'max:100'],
+                'data.partenariats.*.denomination' => ['sometimes', 'string', 'max:200'],
+                'data.partenariats.*.domaines_action' => ['sometimes', 'string', 'max:500'],
+                'data.partenariats.*.date_mise_en_oeuvre' => ['sometimes', 'string', 'max:100'],
+                'data.partenariats.*.responsable' => ['sometimes', 'string', 'max:200'],
+                'data.partenariats.*.contact' => ['sometimes', 'string', 'max:100'],
+                'data.organisation_etablissement' => [
+                    'sometimes', 'array:devise,charte,reglement_interieur_specifique,projet_etablissement',
+                ],
+                'data.organisation_etablissement.devise' => ['sometimes', 'array:existe,texte'],
+                'data.organisation_etablissement.devise.existe' => ['sometimes', 'boolean'],
+                'data.organisation_etablissement.devise.texte' => ['sometimes', 'nullable', 'string', 'max:255'],
+                'data.organisation_etablissement.charte' => ['sometimes', 'boolean'],
+                'data.organisation_etablissement.reglement_interieur_specifique' => ['sometimes', 'boolean'],
+                'data.organisation_etablissement.projet_etablissement' => ['sometimes', 'boolean'],
                 'data.personnel_administration' => ['sometimes', 'array:personnels'],
                 'data.personnel_administration.personnels' => ['sometimes', 'array', 'max:50'],
                 'data.personnel_administration.personnels.*' => [
@@ -217,6 +242,21 @@ final class AnnualReportDataValidator
                 'data.organisation_pedagogique.emplois_du_temps.*.heures_assurees' => [
                     'sometimes', 'integer', 'min:0', 'max:60',
                 ],
+                'data.difficultes_solutions' => ['sometimes', 'array:domaines,autres'],
+                'data.difficultes_solutions.domaines' => [
+                    'sometimes', 'array:'.implode(',', self::DIFFICULTY_DOMAINS),
+                ],
+                'data.difficultes_solutions.autres' => ['sometimes', 'array', 'max:50'],
+                'data.difficultes_solutions.autres.*' => [
+                    'sometimes', 'array:domaine,difficultes,solutions_envisagees',
+                ],
+                'data.difficultes_solutions.autres.*.domaine' => ['sometimes', 'string', 'max:200'],
+                'data.difficultes_solutions.autres.*.difficultes' => [
+                    'sometimes', 'nullable', 'string', 'max:5000',
+                ],
+                'data.difficultes_solutions.autres.*.solutions_envisagees' => [
+                    'sometimes', 'nullable', 'string', 'max:5000',
+                ],
             ];
 
             foreach (self::SCHOOL_DAYS as $day) {
@@ -226,6 +266,19 @@ final class AnnualReportDataValidator
                 foreach (self::PRIMARY_SCHOOL_PERIODS as $period) {
                     $rules["$dayPath.$period"] = ['sometimes', 'nullable', 'string', 'max:120'];
                 }
+            }
+
+            foreach (self::DIFFICULTY_DOMAINS as $domain) {
+                $domainPath = "data.difficultes_solutions.domaines.$domain";
+                $rules[$domainPath] = ['sometimes', 'array:difficultes,solutions_envisagees'];
+                $rules["$domainPath.difficultes"] = ['sometimes', 'nullable', 'string', 'max:5000'];
+                $rules["$domainPath.solutions_envisagees"] = [
+                    'sometimes', 'nullable', 'string', 'max:5000',
+                ];
+            }
+
+            if ($etablissementStatus === 'public') {
+                $rules += self::financialRules();
             }
 
             foreach ([
@@ -512,9 +565,56 @@ final class AnnualReportDataValidator
      * @param  array<string, mixed>  $data
      * @return array<int, string>
      */
-    public static function missing(array $data, AnnualReportType $reportType = AnnualReportType::Rentree): array
+    public static function missing(
+        array $data,
+        AnnualReportType $reportType = AnnualReportType::Rentree,
+        ?EtablissementType $etablissementType = null,
+        ?string $etablissementStatus = null,
+    ): array {
+        return array_values(array_diff(self::keysForType($reportType, $etablissementType, $etablissementStatus), array_keys($data)));
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    private static function financialRules(): array
     {
-        return array_values(array_diff(self::keysForType($reportType), array_keys($data)));
+        $financialRows = [
+            'recettes' => [
+                'frais_participation_scolarite',
+                'autres_contributions_ce',
+                'subvention_vacation',
+                'subventions_collectivites_territoriales',
+                'autres_recettes',
+            ],
+            'depenses' => [
+                'reversement_10_pourcent_dr_dp',
+                'salaires_personnel',
+                'frais_vacation',
+                'investissements_equipements',
+            ],
+        ];
+        $rules = [
+            'data.situation_financiere' => ['sometimes', 'array:exercice_precedent,exercice_en_cours'],
+        ];
+
+        foreach (['exercice_precedent', 'exercice_en_cours'] as $year) {
+            $rules["data.situation_financiere.$year"] = ['sometimes', 'array:recettes,depenses'];
+
+            foreach ($financialRows as $category => $rows) {
+                $rules["data.situation_financiere.$year.$category"] = [
+                    'sometimes', 'array:'.implode(',', $rows),
+                ];
+
+                foreach ($rows as $row) {
+                    $rules["data.situation_financiere.$year.$category.$row"] = [
+                        'sometimes', 'numeric', 'min:0',
+                    ];
+                }
+            }
+        }
+
+        return $rules;
     }
 
     /**
@@ -524,8 +624,9 @@ final class AnnualReportDataValidator
         array $data,
         AnnualReportType $reportType = AnnualReportType::Rentree,
         ?EtablissementType $etablissementType = null,
+        ?string $etablissementStatus = null,
     ): bool {
-        $allowedKeys = self::keysForType($reportType, $etablissementType);
+        $allowedKeys = self::keysForType($reportType, $etablissementType, $etablissementStatus);
 
         if (array_diff(array_keys($data), $allowedKeys) !== []) {
             return false;

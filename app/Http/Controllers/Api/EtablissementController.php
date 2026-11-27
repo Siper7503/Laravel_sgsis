@@ -50,6 +50,7 @@ class EtablissementController extends Controller
                 'code',
                 'nom',
                 'type',
+                'statut',
                 'arrondissement',
                 'adresse',
                 'latitude',
@@ -95,6 +96,7 @@ class EtablissementController extends Controller
             'code' => ['required', 'string', 'max:30', 'unique:etablissements,code'],
             'nom' => ['required', 'string', 'max:200'],
             'type' => ['required', Rule::in(['primaire', 'secondaire'])],
+            'statut' => ['required', Rule::in(['public', 'prive'])],
             'arrondissement' => ['nullable', 'string', 'max:100'],
             'adresse' => ['nullable', 'string', 'max:255'],
             'latitude' => ['required_with:longitude', 'numeric', 'between:-90,90'],
@@ -137,6 +139,17 @@ class EtablissementController extends Controller
             Gate::authorize('updateLocation', $etablissement);
         }
 
+        if (
+            $request->filled('statut')
+            && $etablissement->statut !== null
+            && $request->input('statut') !== $etablissement->statut
+            && $etablissement->annualReports()->exists()
+        ) {
+            return response()->json([
+                'message' => 'Le statut ne peut pas être modifié après la création de rapports annuels.',
+            ], 409);
+        }
+
         $validated = $request->validate([
             'code' => [
                 'sometimes', 'required', 'string', 'max:30',
@@ -144,6 +157,7 @@ class EtablissementController extends Controller
             ],
             'nom' => ['sometimes', 'required', 'string', 'max:200'],
             'type' => ['sometimes', 'required', Rule::in(['primaire', 'secondaire'])],
+            'statut' => ['sometimes', 'required', Rule::in(['public', 'prive'])],
             'arrondissement' => ['nullable', 'string', 'max:100'],
             'adresse' => ['nullable', 'string', 'max:255'],
             'latitude' => ['required_with:longitude', 'numeric', 'between:-90,90'],

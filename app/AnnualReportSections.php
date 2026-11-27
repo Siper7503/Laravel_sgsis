@@ -38,8 +38,9 @@ final class AnnualReportSections
     public static function keysForType(
         AnnualReportType $reportType,
         ?EtablissementType $etablissementType = null,
+        ?string $etablissementStatus = null,
     ): array {
-        return AnnualReportDataValidator::keysForType($reportType, $etablissementType);
+        return AnnualReportDataValidator::keysForType($reportType, $etablissementType, $etablissementStatus);
     }
 
     /**
@@ -48,17 +49,22 @@ final class AnnualReportSections
     public static function draftValidationRules(
         AnnualReportType $reportType,
         ?EtablissementType $etablissementType = null,
+        ?string $etablissementStatus = null,
     ): array {
-        return AnnualReportDataValidator::draftValidationRules($reportType, $etablissementType);
+        return AnnualReportDataValidator::draftValidationRules($reportType, $etablissementType, $etablissementStatus);
     }
 
     /**
      * @param  array<string, mixed>  $data
      * @return array<int, string>
      */
-    public static function missing(array $data, AnnualReportType $reportType = AnnualReportType::Rentree): array
-    {
-        return AnnualReportDataValidator::missing($data, $reportType);
+    public static function missing(
+        array $data,
+        AnnualReportType $reportType = AnnualReportType::Rentree,
+        ?EtablissementType $etablissementType = null,
+        ?string $etablissementStatus = null,
+    ): array {
+        return AnnualReportDataValidator::missing($data, $reportType, $etablissementType, $etablissementStatus);
     }
 
     /**
@@ -68,7 +74,8 @@ final class AnnualReportSections
         array $data,
         AnnualReportType $reportType = AnnualReportType::Rentree,
         ?EtablissementType $etablissementType = null,
+        ?string $etablissementStatus = null,
     ): bool {
-        return AnnualReportDataValidator::hasValidStructure($data, $reportType, $etablissementType);
+        return AnnualReportDataValidator::hasValidStructure($data, $reportType, $etablissementType, $etablissementStatus);
     }
 }

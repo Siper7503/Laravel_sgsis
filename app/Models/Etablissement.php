@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property EtablissementType $type
+ * @property string|null $statut
  */
 class Etablissement extends Model
 {
@@ -21,6 +22,7 @@ class Etablissement extends Model
         'code',
         'nom',
         'type',
+        'statut',
         'arrondissement',
         'adresse',
         'latitude',

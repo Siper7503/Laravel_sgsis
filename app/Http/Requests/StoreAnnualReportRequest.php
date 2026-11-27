@@ -52,16 +52,17 @@ class StoreAnnualReportRequest extends FormRequest
                 'regex:/^\d{4}-\d{4}$/',
                 $uniqueSchoolYear,
             ],
-            'data' => ['required', 'array:'.implode(',', AnnualReportSections::keysForType($reportType, $etablissement instanceof Etablissement ? $etablissement->type : null))],
+            'data' => ['required', 'array:'.implode(',', AnnualReportSections::keysForType($reportType, $etablissement instanceof Etablissement ? $etablissement->type : null, $etablissement instanceof Etablissement ? $etablissement->statut : null))],
         ];
 
         $etablissementType = $etablissement instanceof Etablissement ? $etablissement->type : null;
+        $etablissementStatus = $etablissement instanceof Etablissement ? $etablissement->statut : null;
 
-        foreach (AnnualReportSections::keysForType($reportType, $etablissementType) as $section) {
+        foreach (AnnualReportSections::keysForType($reportType, $etablissementType, $etablissementStatus) as $section) {
             $rules["data.$section"] = ['sometimes', 'array'];
         }
 
-        return array_merge($rules, AnnualReportSections::draftValidationRules($reportType, $etablissementType));
+        return array_merge($rules, AnnualReportSections::draftValidationRules($reportType, $etablissementType, $etablissementStatus));
     }
 
     /**

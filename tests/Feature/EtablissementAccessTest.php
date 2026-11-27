@@ -79,6 +79,20 @@ class EtablissementAccessTest extends TestCase
             ->assertJsonPath('data.0.id', $active->id);
     }
 
+    public function test_admin_must_set_establishment_status(): void
+    {
+        $admin = User::factory()->create(['role' => UserRole::Admin]);
+
+        $this->actingAs($admin)
+            ->postJson('/api/etablissements', [
+                'code' => 'ETB-STATUS-001',
+                'nom' => 'École sans statut',
+                'type' => 'primaire',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('statut');
+    }
+
     public function test_admin_can_create_an_establishment_without_coordinates(): void
     {
         $admin = User::factory()->create(['role' => UserRole::Admin]);
@@ -88,8 +102,10 @@ class EtablissementAccessTest extends TestCase
                 'code' => 'ETB-001',
                 'nom' => 'École de test',
                 'type' => 'primaire',
+                'statut' => 'public',
             ])
             ->assertCreated()
+            ->assertJsonPath('data.statut', 'public')
             ->assertJsonPath('data.latitude', null)
             ->assertJsonPath('data.longitude', null);
 
@@ -109,6 +125,7 @@ class EtablissementAccessTest extends TestCase
                 'code' => 'ETB-003',
                 'nom' => 'École de test',
                 'type' => 'primaire',
+                'statut' => 'public',
                 'latitude' => 12.34,
             ])
             ->assertUnprocessable()
@@ -126,6 +143,7 @@ class EtablissementAccessTest extends TestCase
                 'code' => 'ETB-002',
                 'nom' => 'École de test',
                 'type' => 'primaire',
+                'statut' => 'public',
                 'latitude' => 12.34,
                 'longitude' => -1.52,
             ])

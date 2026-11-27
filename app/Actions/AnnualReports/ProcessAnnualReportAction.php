@@ -83,7 +83,12 @@ class ProcessAnnualReportAction
                 ]);
             }
 
-            $missingSections = AnnualReportSections::missing($report->data ?? [], $report->report_type);
+            $missingSections = AnnualReportSections::missing(
+                $report->data ?? [],
+                $report->report_type,
+                $report->etablissement->type,
+                $report->etablissement->statut,
+            );
 
             if (
                 $missingSections !== []
@@ -91,6 +96,7 @@ class ProcessAnnualReportAction
                     $report->data ?? [],
                     $report->report_type,
                     $report->etablissement->type,
+                    $report->etablissement->statut,
                 )
             ) {
                 throw ValidationException::withMessages([
